@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Маска Маэстро — Полная версия</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        body {
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            touch-action: none;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
+            max-height: 900px;
+            border: 4px solid #b8860b;
+            box-shadow: 0 0 50px rgba(139, 69, 19, 0.8), inset 0 0 50px rgba(0,0,0,0.9);
+            background: #1a0f0a;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        /* UI поверх canvas */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .fear-bar {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 35px;
+            height: 180px;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #b8860b;
+            border-radius: 18px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+        .fear-fill {
+            width: 100%;
+            background: linear-gradient(to top, #8b0000, #ff4444);
+            transition: height 0.2s;
+            height: 0%;
+            box-shadow: 0 0 10px #ff0000;
+        }
+        .inventory {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(20, 10, 5, 0.85);
+            border: 2px solid #b8860b;
+            border-radius: 30px;
+            padding: 8px 20px;
+            backdrop-filter: blur(5px);
+        }
+        .mask-slot {
+            width: 38px;
+            height: 38px;
+            border: 2px dashed #b8860b;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.6);
+            transition: all 0.3s;
+        }
+        .mask-slot.filled {
+            background: radial-gradient(circle at center, #ffd700, #b8860b);
+            border-color: #ffd700;
+            box-shadow: 0 0 15px gold;
+        }
+        .joystick-zone {
+            position: absolute;
+            bottom: 100px;
+            left: 25px;
+            width: 140px;
+            height: 140px;
+            pointer-events: auto;
+        }
+        .interact-btn {
+            position: absolute;
+            bottom: 140px;
+            right: 35px;
+            width: 70px;
+            height: 70px;
+            background: rgba(139, 69, 19, 0.7);
+            border: 2px solid #b8860b;
+            border-radius: 50%;
+            color: #ffd700;
+            font-size: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            box-shadow: 0 0 20px rgba(255,215,0,0.6);
+            transition: all 0.2s;
+        }
+        .interact-btn:active {
+            background: rgba(255,215,0,0.9);
+            transform: scale(0.85);
+        }
+        /* Меню */
+        .menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #2c1a0e, #0a0502);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            pointer-events: auto;
+            font-family: 'Georgia', serif;
+            color: #e6c27a;
+            text-align: center;
+            transition: opacity 0.5s;
+        }
+        .menu-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .menu-title {
+            font-size: 42px;
+            font-weight: bold;
+            text-shadow: 0 0 20px #b8860b, 0 0 5px #000;
+            margin-bottom: 5px;
+            letter-spacing: 3px;
+        }
+        .menu-subtitle {
+            font-size: 18px;
+            font-style: italic;
+            margin-bottom: 30px;
+            color: #c49a6c;
+            text-shadow: 0 0 10px #000;
+        }
+        .difficulty-select {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+            width: 80%;
+        }
+        .diff-btn {
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #b8860b;
+            color: #e6c27a;
+            padding: 14px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 2px;
+            backdrop-filter: blur(5px);
+        }
+        .diff-btn.selected {
+            background: #b8860b;
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 20px #ffd700;
+            border-color: #ffd700;
+        }
+        .play-btn {
+            background: #8b0000;
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            font-size: 28px;
+            padding: 15px 50px;
+            border-radius: 40px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            box-shadow: 0 0 30px #8b0000;
+            transition: all 0.3s;
+        }
+        .play-btn:hover {
+            background: #a52a2a;
+            box-shadow: 0 0 50px #ff4444;
+        }
+        .message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            border: 2px solid #b8860b;
+            color: #ffd700;
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 22px;
+            z-index: 30;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+        .message-box button {
+            margin-top: 15px;
+            background: #b8860b;
+            color: #000;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI элементы -->
+    <div class="ui-layer">
+        <div class="fear-bar"><div class="fear-fill" id="fearFill"></div></div>
+        <div class="inventory" id="inventory">
+            <div class="mask-slot" id="slot0"></div><div class="mask-slot" id="slot1"></div>
+            <div class="mask-slot" id="slot2"></div><div class="mask-slot" id="slot3"></div>
+            <div class="mask-slot" id="slot4"></div><div class="mask-slot" id="slot5"></div>
+            <div class="mask-slot" id="slot6"></div>
+        </div>
+    </div>
+
+    <!-- Джойстик и кнопка -->
+    <div class="joystick-zone" id="joystickZone">
+        <canvas id="joystickCanvas" width="140" height="140"></canvas>
+    </div>
+    <div class="interact-btn" id="interactBtn">🖐️</div>
+
+    <!-- Меню -->
+    <div class="menu-overlay" id="menuOverlay">
+        <div class="menu-title">МАСКА МАЭСТРО</div>
+        <div class="menu-subtitle">Театр «Лунный свет»</div>
+        <div class="difficulty-select">
+            <div class="diff-btn selected" data-diff="easy">🕯️ Лёгкая</div>
+            <div class="diff-btn" data-diff="normal">🎭 Нормальная</div>
+            <div class="diff-btn" data-diff="hard">💀 Сложная</div>
+        </div>
+        <div class="play-btn" id="playBtn">ИГРАТЬ</div>
+    </div>
+
+    <!-- Сообщения -->
+    <div class="message-box" id="messageBox"></div>
+</div>
+
+<script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+
+        // UI
+        const fearFill = document.getElementById('fearFill');
+        const interactBtn = document.getElementById('interactBtn');
+        const messageBox = document.getElementById('messageBox');
+        const menuOverlay = document.getElementById('menuOverlay');
+        const maskSlots = [
+            document.getElementById('slot0'), document.getElementById('slot1'), document.getElementById('slot2'),
+            document.getElementById('slot3'), document.getElementById('slot4'), document.getElementById('slot5'),
+            document.getElementById('slot6')
+        ];
+
+        // Константы
+        const TILE = 32;
+        const MAP_W = 30; // расширенная карта
+        const MAP_H = 30;
+
+        // Состояние игры
+        let map = [];
+        let player = {};
+        let maestro = {};
+        let masks = [];
+        let mannequins = [];
+        let hidingSpots = [];
+        let chandelierLever = null;
+        let chandelierDropped = false;
+        let ritualSpot = null;
+        let exitDoor = null;
+        let gameActive = false;
+        let gameOver = false;
+        let victory = false;
+        let noiseEvents = [];
+        let difficulty = 'normal'; // easy/normal/hard
+        let requiredMasks = 5;
+        let maestroSpeedPatrol = 1.8;
+        let maestroSpeedChase = 4.2;
+        let noiseRunRadius = 300;
+        let sightRange = 200;
+        let fearDistance = 400;
+
+        // Тайлы
+        const T_EMPTY = 0, T_WALL = 1, T_DOOR = 2, T_FURN = 3, T_HIDE = 4, T_MANNEQUIN = 5;
+        const T_STAIRS_DOWN = 6, T_STAIRS_UP = 7, T_STAIRS_BALCONY = 8;
+
+        function initDifficulty() {
+            switch(difficulty) {
+                case 'easy':
+                    requiredMasks = 3;
+                    maestroSpeedPatrol = 1.2;
+                    maestroSpeedChase = 3.0;
+                    noiseRunRadius = 200;
+                    sightRange = 160;
+                    fearDistance = 500;
+                    break;
+                case 'normal':
+                    requiredMasks = 5;
+                    maestroSpeedPatrol = 1.8;
+                    maestroSpeedChase = 4.2;
+                    noiseRunRadius = 300;
+                    sightRange = 200;
+                    fearDistance = 400;
+                    break;
+                case 'hard':
+                    requiredMasks = 7;
+                    maestroSpeedPatrol = 2.5;
+                    maestroSpeedChase = 5.5;
+                    noiseRunRadius = 350;
+                    sightRange = 250;
+                    fearDistance = 350;
+                    break;
+            }
+            // обновить видимость слотов масок
+            for(let i=0; i<7; i++) {
+                maskSlots[i].style.display = i < requiredMasks ? 'block' : 'none';
+            }
+        }
+
+        function generateMap() {
+            map = Array(MAP_H).fill().map(() => Array(MAP_W).fill(T_WALL));
+
+            function fillRoom(x,y,w,h) {
+                for(let i=y; i<y+h; i++) for(let j=x; j<x+w; j++) if(i>=0&&i<MAP_H&&j>=0&&j<MAP_W) map[i][j]=T_EMPTY;
+            }
+
+            // === ЭТАЖ 1: Фойе, зрительный зал, сцена ===
+            // Фойе (внизу)
+            fillRoom(8, 23, 14, 5);
+            // Главный зал (партер)
+            fillRoom(5, 11, 20, 12);
+            // Сцена
+            fillRoom(7, 7, 16, 4);
+            // Левое крыло (гримёрные)
+            fillRoom(1, 11, 4, 9);
+            // Правое крыло (склад)
+            fillRoom(25, 11, 4, 9);
+
+            // Двери между зонами
+            map[22][9] = T_DOOR; map[22][10] = T_DOOR; // фойе-зал
+            map[12][7] = T_DOOR; map[13][7] = T_DOOR; // зал-сцена
+            map[11][6] = T_DOOR; map[11][24] = T_DOOR; // крылья
+            map[12][26] = T_DOOR;
+
+            // Мебель
+            map[14][12] = T_FURN; map[16][12] = T_FURN; // кресла в зале
+            map[9][14] = T_FURN; map[21][14] = T_FURN;
+            map[12][8] = T_FURN; // рояль на сцене
+
+            // Лестницы на другие этажи
+            map[23][13] = T_STAIRS_DOWN; // в подвал
+            map[12][4] = T_STAIRS_UP;    // на балкон
+
+            // === ЭТАЖ 2: Балкон (над залом, отдельная зона вверху карты) ===
+            fillRoom(5, 1, 20, 3);
+            // соединение с лестницей
+            map[3][13] = T_STAIRS_BALCONY; // переход с балкона вниз
+            map[11][4] = T_STAIRS_BALCONY; // из зала на балкон (уже есть T_STAIRS_UP, сопоставим)
+            // декорации балкона
+            map[2][8] = T_FURN; map[2][18] = T_FURN;
+
+            // === ПОДВАЛ (справа внизу карты) ===
+            fillRoom(0, 26, 8, 4); // оркестровая яма/подвал
+            map[27][4] = T_STAIRS_DOWN; // вход из фойе
+            map[23][13] = T_STAIRS_UP; // выход в фойе
+            map[26][2] = T_FURN; map[27][6] = T_FURN;
+
+            // Укрытия
+            hidingSpots = [
+                {x:3,y:13}, {x:3,y:16}, {x:26,y:13}, {x:26,y:16}, // крылья
+                {x:10,y:24}, {x:18,y:24}, // фойе
+                {x:1,y:27}, {x:6,y:27}, // подвал
+                {x:7,y:2}, {x:20,y:2} // балкон
+            ];
+            hidingSpots.forEach(s => map[s.y][s.x] = T_HIDE);
+
+            // Манекены
+            mannequins = [
+                {x:6,y:9},{x:23,y:9},{x:15,y:6},{x:2,y:19},{x:27,y:19},
+                {x:9,y:2},{x:18,y:2},{x:4,y:27}
+            ];
+            mannequins.forEach(m => map[m.y][m.x] = T_MANNEQUIN);
+
+            // Рычаг люстры
+            chandelierLever = {x:27, y:9};
+
+            // Маски (разместим позже)
+            masks = [];
+            let spots = [];
+            for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) {
+                if(map[y][x]===T_EMPTY) spots.push({x,y});
+            }
+            spots.sort(()=>Math.random()-0.5);
+            let count = 0;
+            for(let s of spots) {
+                if(count>=requiredMasks) break;
+                if(masks.some(m=>Math.abs(m.x-s.x)<4&&Math.abs(m.y-s.y)<4)) continue;
+                masks.push({x:s.x,y:s.y,collected:false});
+                count++;
+            }
+
+            ritualSpot = {x:13, y:7}; // центр сцены
+            exitDoor = {x:14, y:28}; // выход из фойе (после ритуала)
+        }
+
+        function resetPlayerAndMaestro() {
+            player = {
+                x: 14.5*TILE, y: 24.5*TILE, vx:0, vy:0,
+                hidden: false, hideSpot: null, alive: true,
+                masks: 0, ritualProgress:0, ritualActive:false,
+                floor: 'main' // main, balcony, basement
+            };
+            maestro = {
+                x: 14*TILE, y: 14*TILE, targetX:14*TILE, targetY:14*TILE,
+                state:'patrol', patrolIndex:0, stuckTimer:0, stunTimer:0,
+                floor:'main'
+            };
+            chandelierDropped = false;
+            noiseEvents = [];
+            updateMaskUI();
+        }
+
+        function updateMaskUI() {
+            for(let i=0;i<7;i++) {
+                if(i<requiredMasks) {
+                    maskSlots[i].className = 'mask-slot' + (i<player.masks?' filled':'');
+                }
+            }
+        }
+
+        function playerCollides(x,y) {
+            let gx=Math.floor(x/TILE), gy=Math.floor(y/TILE);
+            if(gx<0||gx>=MAP_W||gy<0||gy>=MAP_H) return true;
+            let t=map[gy][gx];
+            return t===T_WALL||t===T_FURN||t===T_MANNEQUIN;
+        }
+
+        function addNoise(x,y,radius) {
+            noiseEvents.push({x,y,radius,time:60});
+        }
+
+        function hasLineOfSight(x1,y1,x2,y2) {
+            let steps = Math.max(Math.abs(x2-x1),Math.abs(y2-y1))/TILE;
+            for(let i=0;i<=steps;i++) {
+                let t=i/steps;
+                let cx=x1+(x2-x1)*t, cy=y1+(y2-y1)*t;
+                if(playerCollides(cx,cy)) return false;
+            }
+            return true;
+        }
+
+        function updateMaestro() {
+            if(maestro.stunTimer>0){maestro.stunTimer--; return;}
+            let dx=player.x-maestro.x, dy=player.y-maestro.y;
+            let dist=Math.sqrt(dx*dx+dy*dy);
+            if(!player.hidden && dist<sightRange) {
+                let angle=Math.atan2(dy,dx);
+                let mAngle=Math.atan2(maestro.targetY-maestro.y,maestro.targetX-maestro.x);
+                let diff=Math.abs(angle-mAngle);
+                if(diff>Math.PI) diff=2*Math.PI-diff;
+                if(diff<1.2 && hasLineOfSight(maestro.x,maestro.y,player.x,player.y)) {
+                    maestro.state='chase'; maestro.targetX=player.x; maestro.targetY=player.y;
+                }
+            }
+            for(let n of noiseEvents) {
+                if(Math.hypot(maestro.x-n.x,maestro.y-n.y)<n.radius) {
+                    maestro.state='investigate'; maestro.targetX=n.x; maestro.targetY=n.y; n.radius=0;
+                }
+            }
+            if(player.ritualActive && !player.hidden) {
+                maestro.state='chase';
+                maestro.targetX=ritualSpot.x*TILE+TILE/2; maestro.targetY=ritualSpot.y*TILE+TILE/2;
+            }
+            let speed=(maestro.state==='chase')?maestroSpeedChase:maestroSpeedPatrol;
+            let tdx=maestro.targetX-maestro.x, tdy=maestro.targetY-maestro.y;
+            let tdist=Math.sqrt(tdx*tdx+tdy*tdy);
+            if(tdist>5) {
+                let moveX=(tdx/tdist)*speed, moveY=(tdy/tdist)*speed;
+                let newX=maestro.x+moveX, newY=maestro.y+moveY;
+                if(!playerCollides(newX,maestro.y)) maestro.x=newX;
+                if(!playerCollides(maestro.x,newY)) maestro.y=newY;
+            } else {
+                if(maestro.state==='patrol'||maestro.state==='investigate') {
+                    maestro.state='patrol';
+                    pickPatrolTarget();
+                }
+            }
+            if(tdist<20 && maestro.state==='chase') maestro.stuckTimer++;
+            else maestro.stuckTimer=0;
+            if(maestro.stuckTimer>60){maestro.state='patrol'; pickPatrolTarget(); maestro.stuckTimer=0;}
+            if(!player.hidden && dist<TILE) { gameOver=true; player.alive=false; }
+        }
+
+        function pickPatrolTarget() {
+            let pts=[{x:14,y:24},{x:14,y:14},{x:5,y:14},{x:25,y:14},{x:14,y:8},{x:2,y:27}];
+            let p=pts[Math.floor(Math.random()*pts.length)];
+            maestro.targetX=p.x*TILE+TILE/2; maestro.targetY=p.y*TILE+TILE/2;
+        }
+
+        function interact() {
+            if(!player.alive||gameOver||victory) return;
+            let px=Math.floor(player.x/TILE), py=Math.floor(player.y/TILE);
+            // Маски
+            for(let m of masks) if(!m.collected && Math.abs(m.x-px)<=1 && Math.abs(m.y-py)<=1) {
+                m.collected=true; player.masks++; updateMaskUI();
+                if(player.masks===requiredMasks) showMessage("Все маски собраны! Идите на сцену.");
+                return;
+            }
+            // Укрытие
+            let hide=hidingSpots.find(s=>Math.abs(s.x-px)<=1&&Math.abs(s.y-py)<=1);
+            if(hide && !player.hidden) { player.hidden=true; player.hideSpot=hide; addNoise(player.x,player.y,40); }
+            else if(player.hidden) { player.hidden=false; player.hideSpot=null; }
+            // Рычаг люстры
+            if(!chandelierDropped && chandelierLever && Math.abs(chandelierLever.x-px)<=1 && Math.abs(chandelierLever.y-py)<=1) {
+                chandelierDropped=true; showMessage("Люстра рухнула! Маэстро оглушён."); maestro.stunTimer=600;
+                addNoise(14*TILE,14*TILE,500);
+            }
+            // Ритуал
+         
